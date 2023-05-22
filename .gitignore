@@ -1,0 +1,14 @@
+/bin/
+/node_modules/
+
+
+# Pulumi stack out
+stack.json
+
+# common secret files
+.env
+*.env
+.env.*
+
+*state.json
+.eslintcache

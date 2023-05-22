@@ -1,0 +1,17 @@
+config:
+  aws:defaultTags:
+    tags:
+      env: staging
+      project: postmangovsg-infra
+      pulumi: true
+      team: postmangovsg
+  aws:region: ap-southeast-1
+  ecs:
+    server:
+      minCapacity: 1
+      maxCapacity: 4
+    worker:
+      minCapacity: 1
+      maxCapacity: 4
+  memorydb:
+    nodeType: 'db.t4g.small'
