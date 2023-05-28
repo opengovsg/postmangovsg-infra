@@ -28,9 +28,11 @@ export const { env, project, team } = loadAwsProviderDefaultTags()
 
 // Having env in every name makes multiple env (e.g. prod + stg) in one AWS account possible
 const name = 'postman'
-const isProd = env === 'prod'
+const isProd = env === 'production'
 const baseUrl = 'postman.gov.sg'
 export const domainName = isProd ? baseUrl : `${env}.${baseUrl}`
+const region = pulumi.output(aws.getRegion())
+const callerIdentity = pulumi.output(aws.getCallerIdentity({}))
 
 // ======================================== VPC =========================================
 const vpc = new Vpc(name, {
@@ -76,6 +78,46 @@ const worker = new EcsWorker(name, {
     maxCapacity: ecsConfig?.worker?.maxCapacity ?? undefined,
   },
 })
+
+// ========== Role policy for getting secrets from Secrets Manager ==============
+// needed because we are injecting secrets into the container via environment variables
+
+const ecsSecretsManagerRolePolicy = new aws.iam.RolePolicy(
+  'ecs-secrets-policy',
+  {
+    role: ecs.taskRole,
+    policy: {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Action: ['secretsmanager:GetSecretValue'],
+          Resource: [
+            pulumi.interpolate`arn:aws:secretsmanager:${region.name}:${callerIdentity.accountId}:secret:*`,
+          ],
+        },
+      ],
+    },
+  },
+)
+const workerSecretsManagerRolePolicy = new aws.iam.RolePolicy(
+  'worker-secrets-policy',
+  {
+    role: ecs.taskRole,
+    policy: {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Action: ['secretsmanager:GetSecretValue'],
+          Resource: [
+            pulumi.interpolate`arn:aws:secretsmanager:${region.name}:${callerIdentity.accountId}:secret:*`,
+          ],
+        },
+      ],
+    },
+  },
+)
 
 // ========================== Log Groups ==========================
 const serverLogs = new aws.cloudwatch.LogGroup(`${name}-server-logs`, {
