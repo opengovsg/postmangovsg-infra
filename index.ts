@@ -124,7 +124,6 @@ const worker = new EcsWorker(name, {
 
 // ========== Role policy for getting secrets from Secrets Manager ==============
 // needed because we are injecting secrets into the container via environment variables
-
 const ecsSecretsManagerRolePolicy = new aws.iam.RolePolicy(
   'ecs-secrets-policy',
   {
@@ -134,10 +133,13 @@ const ecsSecretsManagerRolePolicy = new aws.iam.RolePolicy(
       Statement: [
         {
           Effect: 'Allow',
-          Action: ['secretsmanager:GetSecretValue'],
-          Resource: [
-            pulumi.interpolate`arn:aws:secretsmanager:${region.name}:${callerIdentity.accountId}:secret:*`,
-          ],
+          Action: 'secretsmanager:GetSecretValue',
+          Resource: pulumi.interpolate`arn:aws:secretsmanager:${region.name}:${callerIdentity.accountId}:secret:*`,
+        },
+        {
+          Effect: 'Allow',
+          Action: 'rds-db:connect',
+          Resource: pulumi.interpolate`arn:aws:rds-db:${region.name}:${callerIdentity.accountId}:dbuser:*/flamingo_iam`,
         },
       ],
     },
@@ -146,16 +148,19 @@ const ecsSecretsManagerRolePolicy = new aws.iam.RolePolicy(
 const workerSecretsManagerRolePolicy = new aws.iam.RolePolicy(
   'worker-secrets-policy',
   {
-    role: ecs.taskRole,
+    role: worker.taskRole,
     policy: {
       Version: '2012-10-17',
       Statement: [
         {
           Effect: 'Allow',
-          Action: ['secretsmanager:GetSecretValue'],
-          Resource: [
-            pulumi.interpolate`arn:aws:secretsmanager:${region.name}:${callerIdentity.accountId}:secret:*`,
-          ],
+          Action: 'secretsmanager:GetSecretValue',
+          Resource: pulumi.interpolate`arn:aws:secretsmanager:${region.name}:${callerIdentity.accountId}:secret:*`,
+        },
+        {
+          Effect: 'Allow',
+          Action: 'rds-db:connect',
+          Resource: pulumi.interpolate`arn:aws:rds-db:${region.name}:${callerIdentity.accountId}:dbuser:*/flamingo_iam`,
         },
       ],
     },
