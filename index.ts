@@ -34,10 +34,49 @@ export const domainName = isProd ? baseUrl : `${env}.${baseUrl}`
 const region = pulumi.output(aws.getRegion())
 const callerIdentity = pulumi.output(aws.getCallerIdentity({}))
 
+const legacyPostman = {
+  cidr: '10.102.0.0/16',
+  dbSecurityGroupId: 'sg-091f82cc09ba464ce',
+  vpcId: 'vpc-006dc4e0a97146e40',
+  // only putting storage layer routes here, expand as needed
+  vpcRouteTableIds: [
+    'rtb-0ba4119d843bd1697',
+    'rtb-0f98c74e98527f860',
+    'rtb-01366426a89b70b3e',
+  ],
+}
+
 // ======================================== VPC =========================================
+
 const vpc = new Vpc(name, {
   isProd,
   secondOctet: 27,
+})
+
+const vpcPeeringConnection = new aws.ec2.VpcPeeringConnection(name, {
+  accepter: { allowRemoteVpcDnsResolution: true },
+  autoAccept: true,
+  peerVpcId: legacyPostman.vpcId,
+  requester: { allowRemoteVpcDnsResolution: true },
+  vpcId: vpc.id,
+})
+
+// 6 and 9 seems magical 🥲 6 = 2 AZs * 3 layers (edge/compute/storage), 9 = 3 AZs * 3 layers for prod
+// Can think about improving this later
+for (let i = 0; i < (isProd ? 9 : 6); i++) {
+  new aws.ec2.Route(`${name}-${i}`, {
+    routeTableId: vpc.xVpc.routeTables[i].id,
+    destinationCidrBlock: legacyPostman.cidr,
+    vpcPeeringConnectionId: vpcPeeringConnection.id,
+  })
+}
+
+legacyPostman.vpcRouteTableIds.forEach((routeTableId, i) => {
+  new aws.ec2.Route(`${name}-reverse-${i}`, {
+    routeTableId,
+    destinationCidrBlock: vpc.cidrBlock,
+    vpcPeeringConnectionId: vpcPeeringConnection.id,
+  })
 })
 // ========================== ECS (including LB) + CF/ACM cert ==========================
 const ecr = new aws.ecr.Repository(
@@ -62,6 +101,10 @@ const ecs = new Ecs(name, {
   scalingArgs: {
     minCapacity: ecsConfig?.server?.minCapacity ?? undefined,
     maxCapacity: ecsConfig?.server?.maxCapacity ?? undefined,
+  },
+  deploymentArgs: {
+    deploymentConfigName: 'CodeDeployDefault.ECSAllAtOnce',
+    terminationWaitTimeInMinutes: isProd ? 10 : 0,
   },
   vpc,
 })
@@ -156,6 +199,34 @@ new aws.cloudwatch.LogGroup(`${name}-worker-dd-logs`, {
 //   toSg: rds.securityGroup,
 //   port: 5432,
 // })
+
+new SecurityGroupConnection(`${name}-ecs-task-to-old-redis`, {
+  description: 'Allow traffic from ECS Task to old Redis',
+  fromSg: ecs.taskSecurityGroup,
+  toSgId: legacyPostman.dbSecurityGroupId,
+  port: 6379,
+})
+
+new SecurityGroupConnection(`${name}-ecs-worker-to-old-redis`, {
+  description: 'Allow traffic from ECS Worker to old Redis',
+  fromSg: worker.securityGroup,
+  toSgId: legacyPostman.dbSecurityGroupId,
+  port: 6379,
+})
+
+new SecurityGroupConnection(`${name}-ecs-task-to-old-rds`, {
+  description: 'Allow traffic from ECS Task to old RDS',
+  fromSg: ecs.taskSecurityGroup,
+  toSgId: legacyPostman.dbSecurityGroupId,
+  port: 5432,
+})
+
+new SecurityGroupConnection(`${name}-ecs-worker-to-old-rds`, {
+  description: 'Allow traffic from ECS Worker to old RDS',
+  fromSg: worker.securityGroup,
+  toSgId: legacyPostman.dbSecurityGroupId,
+  port: 5432,
+})
 
 // ======================================= Redis =========================================
 

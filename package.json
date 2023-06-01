@@ -2,7 +2,7 @@
   "name": "postmangovsg-infra",
   "version": "0.0.0",
   "dependencies": {
-    "@opengovsg/pulumi-components": "0.3.6",
+    "@opengovsg/pulumi-components": "0.3.10",
     "@pulumi/aws": "^5.30.0",
     "@pulumi/awsx": "^1.0.2",
     "@pulumi/cloudflare": "^4.12.1",
