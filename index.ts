@@ -167,6 +167,31 @@ const workerSecretsManagerRolePolicy = new aws.iam.RolePolicy(
   },
 )
 
+// Enable ECS egress traffic on port 465 (SMTPS) to send emails via AWS SES
+
+const ecsSmtpsEgressRule = new aws.ec2.SecurityGroupRule('ecsSmtpsEgressRule', {
+  type: 'egress',
+  fromPort: 465,
+  toPort: 465,
+  protocol: 'tcp',
+  cidrBlocks: ['0.0.0.0/0'],
+  securityGroupId: ecs.taskSecurityGroup.id,
+  description: 'Allow ECS to call AWS SES to send emails',
+})
+
+const workerSmtpsEgressRule = new aws.ec2.SecurityGroupRule(
+  'workerSmtpsEgressRule',
+  {
+    type: 'egress',
+    fromPort: 465,
+    toPort: 465,
+    protocol: 'tcp',
+    cidrBlocks: ['0.0.0.0/0'],
+    securityGroupId: worker.securityGroup.id,
+    description: 'Allow ECS to call AWS SES to send emails',
+  },
+)
+
 // ========================== Log Groups ==========================
 const serverLogs = new aws.cloudwatch.LogGroup(`${name}-server-logs`, {
   name: `${name}/ecs/application-server`, // Matched by log group specified in task definition
