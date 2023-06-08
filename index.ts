@@ -173,7 +173,6 @@ const workerSecretsManagerRolePolicy = new aws.iam.RolePolicy(
 )
 
 // Enable ECS egress traffic on port 465 (SMTPS) to send emails via AWS SES
-
 const ecsSmtpsEgressRule = new aws.ec2.SecurityGroupRule('ecsSmtpsEgressRule', {
   type: 'egress',
   fromPort: 465,
@@ -194,6 +193,46 @@ const workerSmtpsEgressRule = new aws.ec2.SecurityGroupRule(
     cidrBlocks: ['0.0.0.0/0'],
     securityGroupId: worker.securityGroup.id,
     description: 'Allow ECS to call AWS SES to send emails',
+  },
+)
+
+// Enable ECS to connect to S3 buckets to (1) upload csv for campaigns; (2) upload attachments for emails
+const csvS3BucketName = `file-${
+  isProd ? 'production' : 'staging'
+}.postman.gov.sg`
+const csvS3BucketArn = `arn:aws:s3:::${csvS3BucketName}/*`
+const csvS3AccessPolicy = new aws.iam.RolePolicy('csvS3AccessPolicy', {
+  role: ecs.taskRole,
+  policy: {
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Action: ['s3:GetObject', 's3:PutObject'],
+        Effect: 'Allow',
+        Resource: csvS3BucketArn,
+      },
+    ],
+  },
+})
+
+const commonAttachmentsS3BucketName = `${
+  isProd ? 'production' : 'staging'
+}.common-attachments`
+const commonAttachmentsS3BucketArn = `arn:aws:s3:::${commonAttachmentsS3BucketName}/*`
+const commonAttachmentsS3AccessPolicy = new aws.iam.RolePolicy(
+  'commonAttachmentsS3AccessPolicy',
+  {
+    role: ecs.taskRole,
+    policy: {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Action: ['s3:GetObject', 's3:PutObject'],
+          Effect: 'Allow',
+          Resource: commonAttachmentsS3BucketArn,
+        },
+      ],
+    },
   },
 )
 
