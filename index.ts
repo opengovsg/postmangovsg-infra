@@ -93,10 +93,15 @@ const ecr = new aws.ecr.Repository(
 )
 export const ecrUri = ecr.repositoryUrl
 
+// this certificate manages the postman.gov.sg and *.postman.gov.sg domains on AWS
+const certificateArn =
+  'arn:aws:acm:ap-southeast-1:454894717801:certificate/feb079a1-4d22-4789-8321-ae332b994ae6'
+
 const ecs = new Ecs(name, {
   loadBalancingArgs: {
     allowCloudFlareOriginatedTraffic: true,
     allowOgpVpnOriginatedTraffic: true,
+    httpsCertificateArn: certificateArn,
   },
   scalingArgs: {
     minCapacity: ecsConfig?.server?.minCapacity ?? undefined,
