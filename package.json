@@ -6,7 +6,7 @@
     "@pulumi/aws": "^5.30.0",
     "@pulumi/awsx": "^1.0.2",
     "@pulumi/cloudflare": "^4.12.1",
-    "@pulumi/pulumi": "^3.0.0"
+    "@pulumi/pulumi": "^3.74.0"
   },
   "devDependencies": {
     "@pulumi/eslint-plugin": "^0.2.0",
